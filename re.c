@@ -32,24 +32,10 @@
 #include "re.h"
 #include <stdio.h>
 #include <ctype.h>
-
-/* Definitions: */
-
-#define MAX_REGEXP_OBJECTS      30    /* Max number of regex symbols in expression. */
-#define MAX_CHAR_CLASS_LEN      40    /* Max length of character-class buffer in.   */
-
+#include <stdlib.h>
+#include <string.h>
 
 enum { UNUSED, DOT, BEGIN, END, QUESTIONMARK, STAR, PLUS, CHAR, CHAR_CLASS, INV_CHAR_CLASS, DIGIT, NOT_DIGIT, ALPHA, NOT_ALPHA, WHITESPACE, NOT_WHITESPACE, /* BRANCH */ };
-
-typedef struct regex_t
-{
-  unsigned char  type;   /* CHAR, STAR, etc.                      */
-  union
-  {
-    unsigned char  ch;   /*      the character itself             */
-    unsigned char* ccl;  /*  OR  a pointer to characters in class */
-  } u;
-} regex_t;
 
 
 
@@ -69,10 +55,24 @@ static int ismetachar(char c);
 
 
 
+static void cleanup_re_free(re_t* regex)
+{
+  if (regex && *regex)
+  {
+    free(*regex);
+    *regex = NULL;
+  }
+}
+
 /* Public functions: */
 int re_match(const char* pattern, const char* text, int* matchlength)
 {
-  return re_matchp(re_compile(pattern), text, matchlength);
+  __attribute__((cleanup(cleanup_re_free))) re_t compiled = re_compile(pattern);
+  if (!compiled)
+  {
+    return -1;
+  }
+  return re_matchp(compiled, text, matchlength);
 }
 
 int re_matchp(re_t pattern, const char* text, int* matchlength)
@@ -80,9 +80,10 @@ int re_matchp(re_t pattern, const char* text, int* matchlength)
   *matchlength = 0;
   if (pattern != 0)
   {
-    if (pattern[0].type == BEGIN)
+    regex_t* patterns = pattern->patterns;
+    if (patterns[0].type == BEGIN)
     {
-      return ((matchpattern(&pattern[1], text, matchlength)) ? 0 : -1);
+      return ((matchpattern(&patterns[1], text, matchlength)) ? 0 : -1);
     }
     else
     {
@@ -92,7 +93,7 @@ int re_matchp(re_t pattern, const char* text, int* matchlength)
       {
         idx += 1;
 
-        if (matchpattern(pattern, text, matchlength))
+        if (matchpattern(patterns, text, matchlength))
         {
           if (text[0] == '\0')
             return -1;
@@ -108,11 +109,16 @@ int re_matchp(re_t pattern, const char* text, int* matchlength)
 
 re_t re_compile(const char* pattern)
 {
-  /* The sizes of the two static arrays below substantiates the static RAM usage of this module.
-     MAX_REGEXP_OBJECTS is the max number of symbols in the expression.
-     MAX_CHAR_CLASS_LEN determines the size of buffer for chars in all char-classes in the expression. */
-  static regex_t re_compiled[MAX_REGEXP_OBJECTS];
-  static unsigned char ccl_buf[MAX_CHAR_CLASS_LEN];
+  regex_container_t* container = (regex_container_t*)malloc(sizeof(regex_container_t));
+  if (!container)
+  {
+    return NULL;
+  }
+
+  *container = (regex_container_t){}; // init all to 0, so we don't need memset
+
+  regex_t* re_compiled = container->patterns;
+  unsigned char* ccl_buf = container->ccl_buf;
   int ccl_bufidx = 1;
 
   char c;     /* current char in pattern   */
@@ -245,7 +251,7 @@ re_t re_compile(const char* pattern)
   /* 'UNUSED' is a sentinel used to indicate end-of-pattern */
   re_compiled[j].type = UNUSED;
 
-  return (re_t) re_compiled;
+  return container;
 }
 
 void re_print(regex_t* pattern)
