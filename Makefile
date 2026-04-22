@@ -7,15 +7,21 @@ NRAND_TESTS := 1000
 # Flags to pass to compiler
 CFLAGS := -O3 -Wall -Wextra -std=c99 -I.
 
+# Flags to thread test
+THREAD_FLAGS := -pthread
+
 all:
 	@$(CC) $(CFLAGS) re.c tests/test1.c         -o tests/test1
 	@$(CC) $(CFLAGS) re.c tests/test2.c         -o tests/test2
+	@$(CC) $(CFLAGS) re.c tests/test3.c         -o tests/test3
 	@$(CC) $(CFLAGS) re.c tests/test_rand.c     -o tests/test_rand
 	@$(CC) $(CFLAGS) re.c tests/test_rand_neg.c -o tests/test_rand_neg
 	@$(CC) $(CFLAGS) re.c tests/test_compile.c  -o tests/test_compile
+	@$(CC) $(CFLAGS) $(THREAD_FLAGS) re.c tests/test_thread.c -o tests/test_thread
+	@echo "Build complete. Run 'make test' to execute tests."
 
 clean:
-	@rm -f tests/test1 tests/test2 tests/test_rand tests/test_compile
+	@rm -f tests/test1 tests/test2 tests/test3 tests/test_rand tests/test_rand_neg tests/test_compile tests/test_thread
 	@#@$(foreach test_bin,$(TEST_BINS), rm -f $(test_bin) ; )
 	@rm -f a.out
 	@rm -f *.o

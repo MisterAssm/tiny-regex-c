@@ -36,26 +36,47 @@
 #define RE_DOT_MATCHES_NEWLINE 1
 #endif
 
-#ifdef __cplusplus
-extern "C"{
+#ifndef MAX_REGEXP_OBJECTS
+#define MAX_REGEXP_OBJECTS      512    /* Max number of regex symbols in expression. */
+#endif
+#ifndef MAX_CHAR_CLASS_LEN
+#define MAX_CHAR_CLASS_LEN      512    /* Max length of character-class buffer in.   */
 #endif
 
+#ifdef __cplusplus
+extern "C" {
 
 
-/* Typedef'd pointer to get abstract datatype. */
-typedef struct regex_t* re_t;
+
+#endif
+
+typedef struct regex_t {
+	unsigned char type; /* CHAR, STAR, etc.                      */
+	union {
+		unsigned char ch; /*      the character itself             */
+		unsigned char *ccl; /*  OR  a pointer to characters in class */
+	} u;
+} regex_t;
+
+/* Need free() when done. */
+typedef struct regex_container {
+	regex_t patterns[MAX_REGEXP_OBJECTS]; /* Array of compiled regex tokens */
+	unsigned char ccl_buf[MAX_CHAR_CLASS_LEN]; /* Buffer for character class data */
+} regex_container_t;
+
+typedef regex_container_t *re_t;
 
 
 /* Compile regex string pattern to a regex_t-array. */
-re_t re_compile(const char* pattern);
+re_t re_compile(const char *pattern);
 
 
 /* Find matches of the compiled pattern inside text. */
-int re_matchp(re_t pattern, const char* text, int* matchlength);
+int re_matchp(re_t pattern, const char *text, int *matchlength);
 
 
 /* Find matches of the txt pattern inside text (will compile automatically first). */
-int re_match(const char* pattern, const char* text, int* matchlength);
+int re_match(const char *pattern, const char *text, int *matchlength);
 
 
 #ifdef __cplusplus

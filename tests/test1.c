@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "re.h"
 
@@ -100,7 +101,7 @@ char* test_vector[][4] =
 };
 
 
-void re_print(re_t);
+void re_print(regex_t* pattern);
 
 int main()
 {
@@ -120,14 +121,18 @@ int main()
         should_fail = (test_vector[i][0] == NOK);
         correctlen = (int)(test_vector[i][3]);
 
-        int m = re_match(pattern, text, &length);
+        re_t compiled = re_compile(pattern);
+        int m = re_matchp(compiled, text, &length);
+        free(compiled);
 
         if (should_fail)
         {
             if (m != (-1))
             {
                 printf("\n");
-                re_print(re_compile(pattern));
+                compiled = re_compile(pattern);
+                re_print(compiled->patterns);
+                free(compiled);
                 fprintf(stderr, "[%lu/%lu]: pattern '%s' matched '%s' unexpectedly, matched %i chars. \n", (i+1), ntests, pattern, text, length);
                 nfailed += 1;
             }
@@ -137,7 +142,9 @@ int main()
             if (m == (-1))
             {
                 printf("\n");
-                re_print(re_compile(pattern));
+                compiled = re_compile(pattern);
+                re_print(compiled->patterns);
+                free(compiled);
                 fprintf(stderr, "[%lu/%lu]: pattern '%s' didn't match '%s' as expected. \n", (i+1), ntests, pattern, text);
                 nfailed += 1;
             }
