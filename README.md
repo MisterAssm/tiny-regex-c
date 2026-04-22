@@ -14,8 +14,8 @@ Supports a subset of the syntax and semantics of the Python standard library imp
 The main design goal of this library is to be small, correct, self contained and use few resources while retaining acceptable performance and feature completeness. Clarity of the code is also highly valued.
 
 ### Notable features and omissions
-- Small code and binary size: 500 SLOC, ~3kb binary for x86. Statically #define'd memory usage / allocation.
-- No use of dynamic memory allocation (i.e. no calls to `malloc` / `free`).
+- Small code and binary size: 500 SLOC, ~3kb binary for x86.
+- Dynamic memory allocation using `malloc`/`free` (each compiled pattern allocates its own memory).
 - To avoid call-stack exhaustion, iterative searching is preferred over recursive by default (can be changed with a pre-processor flag).
 - No support for capturing groups or named capture: `(^P<name>group)` etc.
 - Thorough testing : [exrex](https://github.com/asciimoo/exrex) is used to randomly generate test-cases from regex patterns, which are fed into the regex code for verification. Try `make test` to generate a few thousand tests cases yourself. 
@@ -36,7 +36,7 @@ The main design goal of this library is to be small, correct, self contained and
 This is the public / exported API:
 ```C
 /* Typedef'd pointer to hide implementation details. */
-typedef struct regex_t* re_t;
+typedef struct regex_container* re_t;
 
 /* Compiles regex string pattern to a regex_t-array. */
 re_t re_compile(const char* pattern);
@@ -81,6 +81,8 @@ The integer pointer passed will hold the length of the match.
 
 If the regular expression doesn't match, the matching function returns an index of -1 to indicate failure.
 
+**Note:** You must call `free()` on any pattern compiled with `re_compile()` to avoid memory leaks.
+
 ### Examples
 Example of usage:
 ```C
@@ -95,9 +97,12 @@ re_t pattern = re_compile("[Hh]ello [Ww]orld\\s*[!]?");
 
 /* Check if the regex matches the text: */
 int match_idx = re_matchp(pattern, string_to_search, &match_length);
-if (match_idx != -1)
-{
+if (match_idx != -1) {
   printf("match at idx %i, %i chars long.\n", match_idx, match_length);
+}
+    
+  free(pattern);    
+  return 0;
 }
 ```
 
